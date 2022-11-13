@@ -16,10 +16,8 @@ library(sommer)
 
 
 
-#sim.dir="~/Google Drive/My Drive/Brian lab folder/HPB/Simulation"
-#setwd(sim.dir)
-#source(paste(sim.dir,"/SimulationFunctions.R",sep=""))
-source("/SimulationFunctions.R")
+#compiles SimulationFunctions, found in current working directory
+source(paste(getwd(),"/SimulationFunctions.R",sep=""))
 ####simulation parameters ####
 narrowhert=0.5
 Ne=24 #starting effect population size
