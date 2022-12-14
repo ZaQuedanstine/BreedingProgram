@@ -9,13 +9,12 @@ library(SNPRelate)
 library(statgenGWAS)
 library(sommer)
 library(foreach)
-# library(doMC)
-# c1 = detectCores()
-# registerDoMC(c1)
-library(doParallel)
-cl <- makeCluster(4)
-registerDoParallel(cl)
-
+library(doMC)
+c1 = detectCores()
+registerDoMC(c1)
+#  library(doParallel)
+# cl = makeCluster(detectCores())
+# registerDoParallel(cl)
 
 
 
@@ -36,9 +35,9 @@ Pairwise.SI=0.05 #selection intensity for pairwise crossing scheme
 random.size=1000 #sample size for GWAS
 gwas.threshold=0.05 #threshold for significance for calling something a hit
 distance=100#distance on same chr for what we call a hit
-runs=1#total iteration
+runs=5#total iteration
 enviroment.shift.generation=10 #what generation does trait 2 come under selection
-run.gwas=T #whether to run GWAS or not
+run.gwas=F #whether to run GWAS or not
 gwas.gen = 10 # generation to run GWAS at
 AF=T#do you want to get MAF of each marker for each generation?
 PopStr=T #get population structure descriptors each generation
@@ -48,7 +47,7 @@ start.time=Sys.time()
 
 
 
-data = foreach(r = 1:runs, .combine="rbind") %dopar%{
+data <- foreach(r = 1:runs, .combine="rbind") %do%{
   print(paste("Starting Run",r,sep=" "))
 #founder population
   founderPop = runMacs(nInd=nInd,nChr=10,segSites=n.sites,
@@ -58,7 +57,7 @@ data = foreach(r = 1:runs, .combine="rbind") %dopar%{
                        "-r",1/1E8*(4*Ne), #Recombination rate adjusted for Ne
                        "-eN",10/(4*Ne),100/Ne), #Modeling Ne=100 at 10 generations ago
                      manualGenLen=1) #Genetic length 1 Morgan  
-  SP = SimParam$new(founderPop)
+  SP <<- SimParam$new(founderPop)
   #sexes
   SP$setSexes("yes_rand")
   SP$addTraitA(nQtlPerChr=n.QTL)
@@ -69,6 +68,8 @@ data = foreach(r = 1:runs, .combine="rbind") %dopar%{
 ### reccurent selection breeding program ###
 #loop through generations
 print(paste("Running",n.gen,"Generations"))
+hit.rate_temp = 0
+QTL.Loss.rate_temp = 0
 for(g in 0:n.gen){
   #print(paste("Generation",g))
   if(g==0){
@@ -244,36 +245,59 @@ list(rech2_t1=data.frame(run=r,gen=0:c(n.gen+1),h2_t1=Gvar_t1/(Pvar_t1+Gvar_t1))
 end.time=Sys.time()
 print(end.time-start.time)
 
+rech2_t1 = data[1, "rech2_t1"]
+rech2_t2 = data[1, "rech2_t2"]
+recGvar_t1 = data[1, "recGvar_t1"]
+recGvar_t2 = data[1, "recGvar_t2"]
+recPvar_t1 = data[1, "recPvar_t1"]
+recPvar_t2 = data[1, "recPvar_t2"]
+recgenMean_t1 = data[1, "recgenMean_t1"]
+recgenMean_t2 = data[1, "recgenMean_t2"]
+recphenMean_t1 = data[1, "recphenMean_t1"]
+recphenMean_t2 = data[1, "recphenMean_t2"]
+hit.rate = data[1, "hit.rate"]
+QTL.Loss.rate = data[1, "QTL.Loss.rate"]
+ranMAF = data[1, "ranMAF"]
+ranPopStr = data[1, "ranPopStr"]
+for(i in 2:runs)
+{
+  rech2_t1 = rbind(rech2_t1, data[i, "rech2_t1"])
+  rech2_t2 = rbind(rech2_t2, data[i, "rech2_t2"])
+  recGvar_t1 = rbind(recGvar_t1, data[i, "recGvar_t1"])
+  recGvar_t2 = rbind(recGvar_t2, data[i, "recGvar_t2"])
+  recPvar_t1 = rbind(recPvar_t1, data[i, "recPvar_t1"])
+  recPvar_t2 = rbind(recPvar_t2, data[i, "recPvar_t2"])
+  recgenMean_t1 = rbind(recgenMean_t1, data[i, "recgenMean_t1"])
+  recgenMean_t2 = rbind(recgenMean_t2, data[i, "recgenMean_t2"])
+  recphenMean_t1 = rbind(recphenMean_t1, data[i, "recphenMean_t1"])
+  recphenMean_t2 = rbind(recphenMean_t2, data[i, "recphenMean_t2"])
+  hit.rate = rbind(hit.rate, data[i, "hit.rate"])
+  QTL.Loss.rate = rbind(QTL.Loss.rate, data[i, "QTL.Loss.rate"])
+  ranMAF = rbind(ranMAF, data[i, "ranMAF"])
+  ranPopStr = rbind(ranPopStr, data[i, "ranPopStr"])
+}
 
-  breeding_results=list(
-    h2=cbind(data["rech2_t1"], data["rech2_t2"]),
-    Gvar=cbind(data["recGvar_t1"],data["recGvar_t2"]),
-    Pvar=cbind(data["recPvar_t1"], data["recPvar_t2"]),
-    genMean=cbind(data["recgenMean_t1"], data["recgenMean_t2"]),
-    phenMean=cbind(data["recphenMean_t1"], data["recphenMean_t2"])
+
+    breeding_results=list(
+    h2=cbind(rech2_t1, rech2_t2),
+    Gvar=cbind(recGvar_t1, recGvar_t2),
+    Pvar=cbind(recPvar_t1, recPvar_t2),
+    genMean=cbind(recgenMean_t1, recgenMean_t2),
+    phenMean=cbind(recphenMean_t1, recphenMean_t2)
   )
    if(run.gwas){
-   r.hit.rate=data["hit.rate"]
+   r.hit.rate=hit.rate
   }
- r.QTL.Loss.rate=data["QTL.Loss.rate"]
+ r.QTL.Loss.rate=QTL.Loss.rate
  if(run.gwas){
   save(breeding_results,r.QTL.Loss.rate,r.hit.rate,file="RecurrentSelectionProgram.Rdata")
  } else {
    save(breeding_results,file="RecurrentSelectionProgram.Rdata")
  } 
  if(AF){
-   write.table(data["ranMAF"],file="RecurrentSelectionProgram.MAF.Results.txt",row.names = F,col.names = T,quote=F)
+   write.table(ranMAF,file="RecurrentSelectionProgram.MAF.Results.txt",row.names = F,col.names = T,quote=F)
  }
  if(PopStr){
-   write.table(data["ranPopStr"],file="RecurrentSelectionProgram.PopStr.Results.txt",row.names = F,col.names = T,quote=F)
+   write.table(ranPopStr,file="RecurrentSelectionProgram.PopStr.Results.txt",row.names = F,col.names = T,quote=F)
  }
 #  rm(QTLgeno,QTLmap,plan.temp,crossPlan,founderPop,pop,BG.LD, data)
-
-
-
-
-
-
-
-
-
