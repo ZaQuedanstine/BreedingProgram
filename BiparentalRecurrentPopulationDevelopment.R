@@ -13,6 +13,9 @@ library(SNPRelate)
 #BiocManager::install("SNPRelate")
 library(statgenGWAS)
 library(sommer)
+library(doMC)
+c1 = detectCores()
+registerDoMC(c1)
 
 
 
@@ -33,19 +36,19 @@ Pairwise.SI=0.05 #selection intensity for pairwise crossing scheme
 random.size=1000 #sample size for GWAS
 gwas.threshold=0.05 #threshold for significance for calling something a hit
 distance=100#distance on same chr for what we call a hit
-runs=100#total iteration
+runs=2#total iteration
 enviroment.shift.generation=10 #what generation does trait 2 come under selection
-run.gwas=T #weather to run GWAS or not
+run.gwas=F #weather to run GWAS or not
 gwas.gen = 10 # generation to run GWAS at
 inbreeding="DH" #for biparental selection do you want to self (self) or make doubled haploids (DH) #can be none if no inbreeding desired
 AF=T#do you want to get MAF of each marker for each generation?
 PopStr=T #get population structure descriptors each generation
 maf.metric="Summary"
 
+start.time=Sys.time()
 ##run##
-for(r in 1:runs){
+data <- foreach(r = 1:runs, .combine="rbind") %dopar%{
   print(paste("Starting Run",r,sep=" "))
-  start.time=Sys.time()
   #founder/intial population development
   founderPop = runMacs(nInd=nInd,nChr=10,segSites=n.sites,
                        inbred=TRUE,manualCommand = paste(
@@ -54,7 +57,7 @@ for(r in 1:runs){
                          "-r",1/1E8*(4*Ne), #Recombination rate adjusted for Ne
                          "-eN",10/(4*Ne),100/Ne), #Modeling Ne=100 at 10 generations ago
                        manualGenLen=1) #Genetic length 1 Morgan
-  SP = SimParam$new(founderPop)
+  SP <<- SimParam$new(founderPop)
   #sexes
   #SP$setSexes("yes_rand")
   SP$addTraitA(nQtlPerChr=n.QTL)
@@ -162,6 +165,8 @@ for(r in 1:runs){
       maf=rbind(maf,data.frame(g=g+1,MAF(SNP,return=maf.metric)))
       rm(SNP)
     }
+    QTL.Loss.rate_temp = 0
+    hit.rate_temp = 0
     #remove geno for memory 
     ##Run GWAS
     if(run.gwas && g==gwas.gen){
@@ -174,11 +179,7 @@ for(r in 1:runs){
       maf.matrix = rbind((.5*ss/ns), (1-(0.5*ss/ns)))
       maf.temp = apply(maf.matrix, 2, min)
       length(which(maf.temp==0))/c(n.QTL.trait2*10)
-      if(r==1){
-        QTL.Loss.rate=length(which(maf.temp==0))/c(n.QTL.trait2*10)
-      } else{
-        QTL.Loss.rate=c(QTL.Loss.rate,length(which(maf.temp==0))/c(n.QTL.trait2*10))
-      }
+        QTL.Loss.rate_temp=length(which(maf.temp==0))/c(n.QTL.trait2*10)
       
       SNP=pullSnpGeno(pop, snpChip = 1, simParam = SP)
       pheno=pheno(pop)
@@ -196,11 +197,7 @@ for(r in 1:runs){
       print(paste("Running Gwas at generation ",g,sep=""))
       gwas=sim.gwas(SNP=SNP,n.ind=pop@nInd,random.size=1000,p=gwas.threshold,distance)
       
-      if(r==1){
-        hit.rate=c(gwas/c(n.QTL.trait2*10))
-      } else{
-        hit.rate=c(hit.rate,gwas/c(n.QTL.trait2*10))
-      }
+        hit.rate_temp=c(gwas/c(n.QTL.trait2*10))
     }
     
     #select top individuals
@@ -230,46 +227,72 @@ for(r in 1:runs){
   }
   
   #save information as recurrent population items (rec)
-  if(r==1){
-    biph2_t1=data.frame(run=r,gen=0:c(n.gen+1),h2_t1=Gvar_t1/(Pvar_t1+Gvar_t1))
-    bipGvar_t1=data.frame(run=r,gen=0:c(n.gen+1),Gvar_t1)
-    bipPvar_t1=data.frame(run=r,gen=0:c(n.gen+1),Pvar_t1)
-    bipgenMean_t1=data.frame(run=r,gen=0:c(n.gen+1),genMean_t1)
-    bipphenMean_t1=data.frame(run=r,gen=0:c(n.gen+1),phenMean_t1)
-    biph2_t2=data.frame(h2_t2=Gvar_t2/(Pvar_t2+Gvar_t2))
-    bipGvar_t2=data.frame(Gvar_t2)
-    bipPvar_t2=data.frame(Pvar_t2)
-    bipgenMean_t2=data.frame(genMean_t2)
-    bipphenMean_t2=data.frame(phenMean_t2)
     if(AF){
-      bipMAF=data.frame(r=r,maf)
+      bipMAF_temp=data.frame(r=r,maf)
+    }
+    else{
+      bipMAF_temp = 0
     }
     if(PopStr){
-      biPopStr=data.frame(r=r,BG.LD)
+      biPopStr_temp=data.frame(r=r,BG.LD)
     }
-  } else {
-    biph2_t1=rbind(biph2_t1,data.frame(run=r,gen=0:c(n.gen+1),h2_t1=Gvar_t1/(Pvar_t1+Gvar_t1)))
-    bipGvar_t1=rbind(bipGvar_t1,data.frame(run=r,gen=0:c(n.gen+1),Gvar_t1))
-    bipPvar_t1=rbind(bipPvar_t1,data.frame(run=r,gen=0:c(n.gen+1),Pvar_t1))
-    bipgenMean_t1=rbind(bipgenMean_t1,data.frame(run=r,gen=0:c(n.gen+1),genMean_t1))
-    bipphenMean_t1=rbind(bipphenMean_t1,data.frame(run=r,gen=0:c(n.gen+1),phenMean_t1))
-    biph2_t2=rbind(biph2_t2,data.frame(h2_t2=Gvar_t2/(Pvar_t2+Gvar_t2)))
-    bipGvar_t2=rbind(bipGvar_t2,data.frame(Gvar_t2))
-    bipPvar_t2=rbind(bipPvar_t2,data.frame(Pvar_t2))
-    bipgenMean_t2=rbind(bipgenMean_t2,data.frame(genMean_t2))
-    bipphenMean_t2=rbind(bipphenMean_t2,data.frame(phenMean_t2))
-    if(AF){
-      bipMAF=rbind(bipMAF,data.frame(r=r,maf))
+    else{
+      biPopStr_temp = 0
     }
-    if(PopStr){
-      biPopStr=rbind(biPopStr,data.frame(r=r,BG.LD))
-    }
-  }
-  
-  end.time=Sys.time()
-  print(end.time-start.time)
-  
-  if(r==runs){
+    
+    list(
+      biph2_t1=data.frame(run=r,gen=0:c(n.gen+1),h2_t1=Gvar_t1/(Pvar_t1+Gvar_t1)),
+      bipGvar_t1=data.frame(run=r,gen=0:c(n.gen+1),Gvar_t1),
+      bipPvar_t1=data.frame(run=r,gen=0:c(n.gen+1),Pvar_t1),
+      bipgenMean_t1=data.frame(run=r,gen=0:c(n.gen+1),genMean_t1),
+      bipphenMean_t1=data.frame(run=r,gen=0:c(n.gen+1),phenMean_t1),
+      biph2_t2=data.frame(h2_t2=Gvar_t2/(Pvar_t2+Gvar_t2)),
+      bipGvar_t2=data.frame(Gvar_t2),
+      bipPvar_t2=data.frame(Pvar_t2),
+      bipgenMean_t2=data.frame(genMean_t2),
+      bipphenMean_t2=data.frame(phenMean_t2),
+      bipMAF = bipMAF_temp,
+      biPopStr = biPopStr_temp,
+      hit.rate = hit.rate_temp,
+      QTL.Loss.rate = QTL.Loss.rate_temp
+    )
+} ######## for(r in 1:runs){ ######
+
+biph2_t1=data.frame(data[1, "biph2_t1"])
+bipGvar_t1=data.frame(data[1, "bipGvar_t1"])
+bipPvar_t1=data.frame(data[1, "bipPvar_t1"])
+bipgenMean_t1=data.frame(data[1, "bipgenMean_t1"])
+bipphenMean_t1=data.frame(data[1, "bipphenMean_t1"])
+biph2_t2=data.frame(data[1, "biph2_t2"])
+bipGvar_t2=data.frame(data[1, "bipGvar_t2"])
+bipPvar_t2=data.frame(data[1, "bipPvar_t2"])
+bipgenMean_t2=data.frame(data[1, "bipgenMean_t2"])
+bipphenMean_t2=data.frame(data[1, "bipphenMean_t2"])
+bipMAF = data.frame(data[1, "bipMAF"])
+biPopStr = data.frame(data[1, "biPopStr"])
+hit.rate = data.frame(data[1, "hit.rate"])
+QTL.Loss.rate = data.frame(data[1, "QTL.Loss.rate"])
+for(i in 2:runs)
+{
+  biph2_t1=rbind(biph2_t1, data.frame(data[i, "biph2_t1"]))
+  bipGvar_t1=rbind(bipGvar_t1, data.frame(data[i, "bipGvar_t1"]))
+  bipPvar_t1=rbind(bipPvar_t1, data.frame(data[i, "bipPvar_t1"]))
+  bipgenMean_t1=rbind(bipgenMean_t1, data.frame(data[i, "bipgenMean_t1"]))
+  bipphenMean_t1=rbind(bipphenMean_t1, data.frame(data[i, "bipphenMean_t1"]))
+  biph2_t2=rbind(biph2_t2, data.frame(data[i, "biph2_t2"]))
+  bipGvar_t2=rbind(bipGvar_t2, data.frame(data[i, "bipGvar_t2"]))
+  bipPvar_t2=rbind(bipPvar_t2, data.frame(data[i, "bipPvar_t2"]))
+  bipgenMean_t2=rbind(bipgenMean_t2, data.frame( data[i, "bipgenMean_t2"]))
+  bipphenMean_t2=rbind(bipphenMean_t2, data.frame(data[i, "bipphenMean_t2"]))
+  bipMAF = rbind(bipMAF, data.frame(data[i, "bipMAF"]))
+  biPopStr = rbind(biPopStr, data.frame(data[i, "biPopStr"]))
+  hit.rate = c(hit.rate, data.frame(data[i, "hit.rate"]))
+  QTL.Loss.rate = c(QTL.Loss.rate, data.frame(data[i, "QTL.Loss.rate"]))
+}
+
+end.time=Sys.time()
+print(end.time-start.time)
+
     breeding_results=list(
       h2=cbind(biph2_t1,biph2_t2),
       Gvar=cbind(bipGvar_t1,bipGvar_t2),
@@ -292,7 +315,6 @@ for(r in 1:runs){
     if(PopStr){
       write.table(biPopStr,file="BiparentalSelectionProgram.PopStr.Results.txt",row.names = F,col.names = T,quote=F)
     }
-    rm(QTLgeno,QTLmap,plan.temp,crossPlan,founderPop,pop,b.hit.rate,hit.rate,bipMAF,biPopStr,BG.LD,
-       biph2_t1,biph2_t2,bipGvar_t1,bipGvar_t2,bipPvar_t1,bipPvar_t2,bipgenMean_t1,bipgenMean_t2,bipphenMean_t1,bipphenMean_t2)
-  }
-} ######## for(r in 1:runs){ ######
+    # rm(QTLgeno,QTLmap,plan.temp,crossPlan,founderPop,pop,b.hit.rate,hit.rate,bipMAF,biPopStr,BG.LD,
+    #    biph2_t1,biph2_t2,bipGvar_t1,bipGvar_t2,bipPvar_t1,bipPvar_t2,bipgenMean_t1,bipgenMean_t2,bipphenMean_t1,bipphenMean_t2)
+

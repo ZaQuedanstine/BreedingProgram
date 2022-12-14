@@ -12,9 +12,6 @@ library(foreach)
 library(doMC)
 c1 = detectCores()
 registerDoMC(c1)
-#  library(doParallel)
-# cl = makeCluster(detectCores())
-# registerDoParallel(cl)
 
 
 
@@ -47,7 +44,7 @@ start.time=Sys.time()
 
 
 
-data <- foreach(r = 1:runs, .combine="rbind") %do%{
+data <- foreach(r = 1:runs, .combine="rbind") %dopar%{
   print(paste("Starting Run",r,sep=" "))
 #founder population
   founderPop = runMacs(nInd=nInd,nChr=10,segSites=n.sites,
@@ -269,8 +266,8 @@ for(i in 2:runs)
   recgenMean_t2 = rbind(recgenMean_t2, data.frame(data[i, "recgenMean_t2"]))
   recphenMean_t1 = rbind(recphenMean_t1, data.frame(data[i, "recphenMean_t1"]))
   recphenMean_t2 = rbind(recphenMean_t2, data.frame(data[i, "recphenMean_t2"]))
-  hit.rate = rbind(hit.rate, data.frame(data[i, "hit.rate"]))
-  QTL.Loss.rate = rbind(QTL.Loss.rate, data.frame(data[i, "QTL.Loss.rate"]))
+  hit.rate = c(hit.rate, data.frame(data[i, "hit.rate"]))
+  QTL.Loss.rate = c(QTL.Loss.rate, data.frame(data[i, "QTL.Loss.rate"]))
   ranMAF = rbind(ranMAF, data.frame(data[i, "ranMAF"]))
   ranPopStr = rbind(ranPopStr, data.frame(data[i, "ranPopStr"]))
 }
