@@ -35,7 +35,7 @@ Pairwise.SI=0.05 #selection intensity for pairwise crossing scheme
 random.size=1000 #sample size for GWAS
 gwas.threshold=0.05 #threshold for significance for calling something a hit
 distance=100#distance on same chr for what we call a hit
-runs=5#total iteration
+runs=2#total iteration
 enviroment.shift.generation=10 #what generation does trait 2 come under selection
 run.gwas=F #whether to run GWAS or not
 gwas.gen = 10 # generation to run GWAS at
@@ -242,41 +242,41 @@ list(rech2_t1=data.frame(run=r,gen=0:c(n.gen+1),h2_t1=Gvar_t1/(Pvar_t1+Gvar_t1))
     hit.rate = hit.rate_temp)
 
 } ######## for(r in 1:runs){ ######
-end.time=Sys.time()
-print(end.time-start.time)
 
-rech2_t1 = data[1, "rech2_t1"]
-rech2_t2 = data[1, "rech2_t2"]
-recGvar_t1 = data[1, "recGvar_t1"]
-recGvar_t2 = data[1, "recGvar_t2"]
-recPvar_t1 = data[1, "recPvar_t1"]
-recPvar_t2 = data[1, "recPvar_t2"]
-recgenMean_t1 = data[1, "recgenMean_t1"]
-recgenMean_t2 = data[1, "recgenMean_t2"]
-recphenMean_t1 = data[1, "recphenMean_t1"]
-recphenMean_t2 = data[1, "recphenMean_t2"]
-hit.rate = data[1, "hit.rate"]
-QTL.Loss.rate = data[1, "QTL.Loss.rate"]
-ranMAF = data[1, "ranMAF"]
-ranPopStr = data[1, "ranPopStr"]
+rech2_t1 = data.frame(data[1, "rech2_t1"])
+rech2_t2 = data.frame(data[1, "rech2_t2"])
+recGvar_t1 = data.frame(data[1, "recGvar_t1"])
+recGvar_t2 = data.frame(data[1, "recGvar_t2"])
+recPvar_t1 = data.frame(data[1, "recPvar_t1"])
+recPvar_t2 = data.frame(data[1, "recPvar_t2"])
+recgenMean_t1 = data.frame(data[1, "recgenMean_t1"])
+recgenMean_t2 = data.frame(data[1, "recgenMean_t2"])
+recphenMean_t1 = data.frame(data[1, "recphenMean_t1"])
+recphenMean_t2 = data.frame(data[1, "recphenMean_t2"])
+hit.rate = data.frame(data[1, "hit.rate"])
+QTL.Loss.rate = data.frame(data[1, "QTL.Loss.rate"])
+ranMAF = data.frame(data[1, "ranMAF"])
+ranPopStr = data.frame(data[1, "ranPopStr"])
 for(i in 2:runs)
 {
-  rech2_t1 = rbind(rech2_t1, data[i, "rech2_t1"])
-  rech2_t2 = rbind(rech2_t2, data[i, "rech2_t2"])
-  recGvar_t1 = rbind(recGvar_t1, data[i, "recGvar_t1"])
-  recGvar_t2 = rbind(recGvar_t2, data[i, "recGvar_t2"])
-  recPvar_t1 = rbind(recPvar_t1, data[i, "recPvar_t1"])
-  recPvar_t2 = rbind(recPvar_t2, data[i, "recPvar_t2"])
-  recgenMean_t1 = rbind(recgenMean_t1, data[i, "recgenMean_t1"])
-  recgenMean_t2 = rbind(recgenMean_t2, data[i, "recgenMean_t2"])
-  recphenMean_t1 = rbind(recphenMean_t1, data[i, "recphenMean_t1"])
-  recphenMean_t2 = rbind(recphenMean_t2, data[i, "recphenMean_t2"])
-  hit.rate = rbind(hit.rate, data[i, "hit.rate"])
-  QTL.Loss.rate = rbind(QTL.Loss.rate, data[i, "QTL.Loss.rate"])
-  ranMAF = rbind(ranMAF, data[i, "ranMAF"])
-  ranPopStr = rbind(ranPopStr, data[i, "ranPopStr"])
+  rech2_t1 = rbind(rech2_t1, data.frame(data[i, "rech2_t1"]))
+  rech2_t2 = rbind(rech2_t2, data.frame(data[i, "rech2_t2"]))
+  recGvar_t1 = rbind(recGvar_t1, data.frame(data[i, "recGvar_t1"]))
+  recGvar_t2 = rbind(recGvar_t2, data.frame(data[i, "recGvar_t2"]))
+  recPvar_t1 = rbind(recPvar_t1, data.frame(data[i, "recPvar_t1"]))
+  recPvar_t2 = rbind(recPvar_t2, data.frame(data[i, "recPvar_t2"]))
+  recgenMean_t1 = rbind(recgenMean_t1, data.frame(data[i, "recgenMean_t1"]))
+  recgenMean_t2 = rbind(recgenMean_t2, data.frame(data[i, "recgenMean_t2"]))
+  recphenMean_t1 = rbind(recphenMean_t1, data.frame(data[i, "recphenMean_t1"]))
+  recphenMean_t2 = rbind(recphenMean_t2, data.frame(data[i, "recphenMean_t2"]))
+  hit.rate = rbind(hit.rate, data.frame(data[i, "hit.rate"]))
+  QTL.Loss.rate = rbind(QTL.Loss.rate, data.frame(data[i, "QTL.Loss.rate"]))
+  ranMAF = rbind(ranMAF, data.frame(data[i, "ranMAF"]))
+  ranPopStr = rbind(ranPopStr, data.frame(data[i, "ranPopStr"]))
 }
 
+end.time=Sys.time()
+print(end.time-start.time)
 
     breeding_results=list(
     h2=cbind(rech2_t1, rech2_t2),
